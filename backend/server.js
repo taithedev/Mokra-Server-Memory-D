@@ -231,6 +231,44 @@ async function handle(req, res) {
     const secure = PUBLIC_URL.startsWith('https:') ? '; Secure' : '';
     return json(res, 200, { ok: true, username: q.rows[0].username }, { 'Set-Cookie': 'mm_admin=' + session + '; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200' + secure });
   }
+
+  if (path === '/api/v1/admin/setup-status' && req.method === 'GET') {
+    limit(req, 'setup-status', 60);
+    const q = await db.query('SELECT EXISTS(SELECT 1 FROM mm_admin_users) AS initialized');
+    return json(res, 200, { needsSetup: !q.rows[0].initialized });
+  }
+  if (path === '/api/v1/admin/setup' && req.method === 'POST') {
+    limit(req, 'setup', 6);
+    sameOrigin(req);
+    const input = await body(req);
+    const provided = input.setupToken;
+    const expected = process.env.ADMIN_SETUP_TOKEN;
+    if (typeof provided !== 'string' || typeof expected !== 'string' || expected.length < 48 ||
+        provided.length !== expected.length || !timingSafeEqual(Buffer.from(provided), Buffer.from(expected)))
+      throw error(403, 'INVALID_SETUP_TOKEN');
+    if (typeof input.username !== 'string' || !/^[A-Za-z0-9_]{3,60}$/.test(input.username) ||
+        typeof input.password !== 'string' || input.password.length < 12 || input.password.length > 256)
+      throw error(400, 'INVALID_OWNER_DETAILS');
+    const client = await db.connect();
+    const session = makeToken();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock(7109383)');
+      const already = await client.query('SELECT username FROM mm_admin_users LIMIT 1');
+      if (already.rows.length) throw error(409, 'ALREADY_INITIALIZED');
+      await client.query('INSERT INTO mm_admin_users(username,password_hash) VALUES($1,$2)',
+        [input.username, passwordHash(input.password)]);
+      await client.query("INSERT INTO mm_admin_sessions(token_hash,username,expires_at) VALUES($1,$2,now()+interval '12 hours')",
+        [secretHash(session),input.username]);
+      await client.query('COMMIT');
+    } catch (e) { await client.query('ROLLBACK').catch(() => {}); throw e; }
+    finally { client.release(); }
+    await audit(input.username, 'admin.bootstrap', input.username);
+    const secure = PUBLIC_URL.startsWith('https:') ? '; Secure' : '';
+    return json(res, 200, { ok: true, username: input.username }, {
+      'Set-Cookie': 'mm_admin=' + session + '; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200' + secure
+    });
+  }
   if (path.startsWith('/api/v1/admin/')) {
     const username = await admin(req);
     if (req.method !== 'GET') sameOrigin(req);
