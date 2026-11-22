@@ -63,8 +63,21 @@ function number(value){return num.format(Number(value)||0);}
 function timestamp(value){if(!value)return '—';const d=new Date(value);return Number.isFinite(d.getTime())?d.toLocaleString():'—';}
 function shortDate(value){if(!value)return '—';const d=new Date(value);return Number.isFinite(d.getTime())?d.toLocaleDateString(undefined,{month:'short',day:'numeric'}):'—';}
 function isBanned(p){return Boolean(p.is_banned && (!p.banned_until || Date.parse(p.banned_until)>Date.now()));}
-const errors={ADMIN_LOGIN_REQUIRED:'Please sign in again.',INVALID_CREDENTIALS:'Incorrect username or password.',BAD_ORIGIN:'Your site address does not match PUBLIC_URL.',RATE_LIMITED:'Too many requests. Try again shortly.',INVALID_CURRENCY_DELTA:'Enter a nonzero whole number between -1,000,000 and 1,000,000.',PLAYER_NOT_FOUND_OR_INVALID_BALANCE:'Player was not found or the balance would be invalid.',PLAYER_OR_ENABLED_ITEM_NOT_FOUND:'Player or enabled cosmetic was not found.',INVALID_BAN_EXPIRATION:'Enter a future date and time.',INVALID_CATALOG_ITEM:'Please check the cosmetic ID, catalog and name.'};
+const errors={INVALID_SETUP_TOKEN:'Invalid or expired setup link.',ALREADY_INITIALIZED:'An owner already exists. Sign in normally.',INVALID_OWNER_DETAILS:'Use 3–60 letters, numbers or underscores for the username and a 12+ character password.',ADMIN_LOGIN_REQUIRED:'Please sign in again.',INVALID_CREDENTIALS:'Incorrect username or password.',BAD_ORIGIN:'Your site address does not match PUBLIC_URL.',RATE_LIMITED:'Too many requests. Try again shortly.',INVALID_CURRENCY_DELTA:'Enter a nonzero whole number between -1,000,000 and 1,000,000.',PLAYER_NOT_FOUND_OR_INVALID_BALANCE:'Player was not found or the balance would be invalid.',PLAYER_OR_ENABLED_ITEM_NOT_FOUND:'Player or enabled cosmetic was not found.',INVALID_BAN_EXPIRATION:'Enter a future date and time.',INVALID_CATALOG_ITEM:'Please check the cosmetic ID, catalog and name.'};
 let currentPage='overview',username='',searchTerm='',playerOffset=0,catalog=[],eventStream=null,viewToken=0,toastTimer=null,modalClose=null,refreshTimer=null;
+let setupMode=false,setupToken=new URLSearchParams(location.hash.slice(1)).get('setup') || '';
+function showSetupMode() {
+  setupMode=true;
+  $('loginPage').querySelector('.signin-card .eyebrow').textContent='ONE-TIME INITIALIZATION';
+  $('loginPage').querySelector('.signin-card h2').textContent='Set up your workspace.';
+  $('loginPage').querySelector('.signin-card .sub').textContent='Create the first MonkaMemory administrator. Your setup link can only be used once.';
+  $('loginButton').firstChild.textContent='Create owner account ';
+  $('loginUsername').value='taithedev';
+  $('loginPassword').setAttribute('autocomplete','new-password');
+  $('loginPassword').setAttribute('minlength','12');
+  if(!setupToken){$('loginError').textContent='A private setup link is required. Open the link supplied with your deployment.';$('loginButton').disabled=true;}
+}
+
 async function api(path,method='GET',data){
   const options={method,credentials:'same-origin',headers:{}};
   if(data!==undefined){options.headers['Content-Type']='application/json';options.body=JSON.stringify(data);}
@@ -304,8 +317,18 @@ $('togglePassword').addEventListener('click',()=>{const p=$('loginPassword');p.t
 $('loginForm').addEventListener('submit',async e=>{
   e.preventDefault();$('loginError').textContent='';
   const b=$('loginButton');b.disabled=true;
-  try{const d=await api('admin/login','POST',{username:$('loginUsername').value,password:$('loginPassword').value});showDashboard(d.username);}
+  try{
+    const d=setupMode
+      ? await api('admin/setup','POST',{username:$('loginUsername').value,password:$('loginPassword').value,setupToken})
+      : await api('admin/login','POST',{username:$('loginUsername').value,password:$('loginPassword').value});
+    if(setupMode)history.replaceState(null,'',location.pathname+location.search);
+    setupMode=false;setupToken='';showDashboard(d.username);
+  }
   catch(err){$('loginError').textContent=err.message;}finally{b.disabled=false;}
 });
 $('logoutBtn').addEventListener('click',async()=>{try{await api('admin/logout','POST',{});}catch{}showLogin();});
-api('admin/me').then(x=>showDashboard(x.username)).catch(()=>showLogin());
+api('admin/me').then(x=>showDashboard(x.username)).catch(async()=>{
+  showLogin();
+  try { const state=await api('admin/setup-status'); if(state.needsSetup)showSetupMode(); }
+  catch(e) { $('loginError').textContent='Unable to reach the backend: '+e.message; }
+});
