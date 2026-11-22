@@ -4,10 +4,10 @@ Private game backend and admin dashboard built for Monka VR. Neon PostgreSQL sto
 
 ## Setup
 1. Use the existing Neon project **MonkaMemory** with database **monkamemory**.
-2. Deploy `backend/` as a long-running Node.js service (Node 22+, start command `npm start`). The dashboard is served automatically at `/` by the same service; GitHub does not itself host the backend.
-3. Set runtime environment variables: `DATABASE_URL` (Neon pooled connection URL), `AUTH_PEPPER` (random 32+ character secret), `ADMIN_USERNAME`, `ADMIN_PASSWORD` (12+ characters for first-time setup), and `PUBLIC_URL` (exact HTTPS origin).
-4. Do not commit passwords or Neon credentials. Remove `ADMIN_PASSWORD` from deployment variables after bootstrapping the administrator.
-5. Visit `/api/health` to verify Neon connection, then sign in to the dashboard.
+2. Deploy the **whole repository** as one long-running Node.js service (Node 22+, start command `npm start` from the repository root). **Leave Railway's Root Directory blank or `/`**, because `backend/server.js` serves the adjacent `dashboard/` folder. Do not use `/backend` as Railway's Root Directory or the dashboard assets will be excluded. GitHub does not itself host the backend.
+3. In Railway, generate a public HTTPS domain in Settings → Networking, then set runtime environment variables: `DATABASE_URL` (Neon pooled connection URL), `AUTH_PEPPER` (random 32+ character secret), `ADMIN_USERNAME`, `ADMIN_PASSWORD` (12+ characters for first-time setup), and `PUBLIC_URL` (exact HTTPS origin).
+4. `PUBLIC_URL` must be exactly `https://YOUR-RAILWAY-DOMAIN` without a trailing slash (or your custom domain), since the admin login checks browser Origin. Do not commit passwords or Neon credentials. Remove `ADMIN_PASSWORD` from deployment variables after bootstrapping the administrator.
+5. Redeploy after variables change. Visit `/api/health` to verify Neon connection, then sign in to the dashboard.
 6. In the Photon Dashboard, configure **Custom Authentication** endpoint at `https://YOUR_HOST/api/v1/photon/auth`. Use the ticket parameter supplied by the Unity manager.
 7. The repo is only for Monka VR. The API retains compatibility with MonkaMemoryManager.cs and the original Playfablogin.cs fields.
 
@@ -25,9 +25,9 @@ MonkaMemory uses a persistent Node.js process and SSE. Do not deploy the backend
 
 ## Run locally
 ```bash
+cp backend/.env.example backend/.env
+# edit backend/.env; never commit it
 cd backend
-cp .env.example .env
-# edit .env; never commit it
 npm install
 npm run dev
 ```
