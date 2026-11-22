@@ -176,7 +176,7 @@ async function handle(req, res) {
   const path = url.pathname;
   if (path === '/api/health' && req.method === 'GET') {
     await db.query('SELECT 1');
-    return json(res, 200, { ok: true, service: 'MonkaMemory', version: '1.1.0' });
+    return json(res, 200, { ok: true, service: 'MonkaMemory', version: '1.2.0', transport: process.env.VERCEL ? 'poll' : 'events' });
   }
   if (path === '/api/v1/photon/auth' && req.method === 'GET') {
     limit(req, 'photonverify', 180);
