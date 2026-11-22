@@ -1,0 +1,19 @@
+// Optional compatibility shim. This is intentionally a .txt file to prevent
+// duplicate Playfablogin classes when you import MonkaMemory into an existing Unity project.
+// To use: REMOVE or rename your old Playfablogin.cs first, then save this file as Playfablogin.cs
+// inside Assets/MokraMemory/Runtime. Only do this if other scripts still reference Playfablogin.
+
+/// <summary>
+/// Compatibility shim for legacy scene references to Playfablogin.
+/// Replace the old Playfablogin.cs contents with this shim; never keep two classes.
+/// </summary>
+public class Playfablogin : MonkaMemoryManager
+{
+    public new static Playfablogin instance;
+
+    protected override void Awake()
+    {
+        base.Awake();
+        if (MonkaMemoryManager.instance == this) instance = this;
+    }
+}
