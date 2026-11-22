@@ -193,7 +193,7 @@ public sealed class MonkaMemoryWindow : EditorWindow
             SerializedProperty source = from.FindProperty(field);
             SerializedProperty dest = to.FindProperty(field);
             if (source != null && dest != null && source.propertyType == dest.propertyType)
-                dest.CopyFromSerializedProperty(source);
+                to.CopyFromSerializedProperty(source);
         }
         to.ApplyModifiedProperties();
         Undo.RecordObject(old, "Disable previous PlayFab manager");
