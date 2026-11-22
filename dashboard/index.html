@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080b0d">
+  <meta name="description" content="MonkaMemory private Monka VR administration and game operations console.">
+  <title>MonkaMemory — Control Center</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <section id="loginPage" class="login-screen">
+    <div class="login-left">
+      <div class="login-brand"><span class="brand-symbol">m<span>.</span></span><span>MONKAMEMORY <small>MONKA VR INFRASTRUCTURE</small></span></div>
+      <div class="login-pitch">
+        <div class="eyebrow"><span class="pulse"></span> MONKA VR · PRIVATE INFRASTRUCTURE</div>
+        <h1>Everything behind<br><em>the game.</em></h1>
+        <p>One command center for your player data, real-time operations, cosmetics and game security.</p>
+        <div class="login-features"><span>01 / PLAYER DATA</span><span>02 / PHOTON AUTH</span><span>03 / LIVE OPERATIONS</span></div>
+      </div>
+      <div class="login-foot">MONKAMEMORY <span>BUILT FOR MONKA VR</span></div>
+    </div>
+    <div class="login-right">
+      <div class="signin-card">
+        <div class="signin-icon">M</div>
+        <div class="eyebrow">RESTRICTED ACCESS</div>
+        <h2>Welcome back.</h2>
+        <p class="sub">Sign in to your MonkaMemory workspace.</p>
+        <form id="loginForm" autocomplete="on">
+          <label for="loginUsername">Username</label>
+          <input id="loginUsername" name="username" autocomplete="username" placeholder="Enter your username" required>
+          <label for="loginPassword">Password</label>
+          <div class="input-password"><input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required><button type="button" id="togglePassword" class="input-action" aria-label="Show password">Show</button></div>
+          <small id="loginError" class="error" role="alert"></small>
+          <button id="loginButton" class="primary wide" type="submit">Sign in to console <span>↗</span></button>
+        </form>
+        <div class="signin-trust"><span class="lock-icon">◆</span> SECURED SESSION · AUTHORIZED USERS ONLY</div>
+      </div>
+    </div>
+  </section>
+  <div id="dashboard" class="shell hidden">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><div class="brand-symbol">m<span>.</span></div><div><strong>MonkaMemory</strong><small>CONTROL CENTER</small></div><button id="sidebarClose" class="icon-button mobile-only" aria-label="Close menu">×</button></div>
+      <div class="workspace-card"><div class="workspace-avatar">M</div><div><strong>Monka VR</strong><span>Production workspace</span></div><span class="workspace-arrows">⌄</span></div>
+      <div class="nav-group"><div class="nav-label">WORKSPACE</div>
+        <nav class="navigation" aria-label="Primary navigation">
+          <button class="nav-item active" data-page="overview"><span class="nav-icon" data-icon="overview"></span> Overview <span class="nav-chevron">›</span></button>
+          <button class="nav-item" data-page="players"><span class="nav-icon" data-icon="users"></span> Players <span class="nav-chevron">›</span></button>
+          <button class="nav-item" data-page="catalog"><span class="nav-icon" data-icon="box"></span> Cosmetics <span class="nav-chevron">›</span></button>
+          <button class="nav-item" data-page="config"><span class="nav-icon" data-icon="sliders"></span> Game settings <span class="nav-chevron">›</span></button>
+        </nav>
+      </div>
+      <div class="nav-group"><div class="nav-label">SYSTEM</div>
+        <nav class="navigation" aria-label="System navigation">
+          <button class="nav-item" data-page="audit"><span class="nav-icon" data-icon="activity"></span> Activity log <span class="nav-chevron">›</span></button>
+        </nav>
+      </div>
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-status"><div class="status-head"><span>INSTANCE STATUS</span><span class="status-dot"></span></div><strong id="connection">Connecting to API…</strong><small>Neon database · Photon PUN 2</small></div>
+      <button id="logoutBtn" class="logout"><span data-icon="logout"></span> Sign out</button>
+      <div class="sidebar-version">MONKAMEMORY / VERSION 1.1</div>
+    </aside>
+    <div class="backdrop mobile-only hidden" id="mobileBackdrop"></div>
+    <div class="workspace-main">
+      <header class="topbar">
+        <div class="topbar-left"><button id="sidebarOpen" class="icon-button mobile-only" aria-label="Open menu"><span data-icon="menu"></span></button><div class="breadcrumb">Monka VR <span>/</span> <strong id="breadcrumbPage">Overview</strong></div></div>
+        <div class="topbar-right"><div class="topbar-live"><span class="status-dot"></span> MONKA SYSTEMS</div><div class="topbar-separator"></div><span class="admin-avatar">M</span><div class="admin-copy"><strong id="userLabel">Admin</strong><small>Administrator</small></div></div>
+      </header>
+      <div class="page-content" id="mainContent" aria-live="polite"></div>
+      <footer class="footer"><span>© 2026 MONKAMEMORY</span><span>ONE GAME. ONE BACKEND. FULL CONTROL.</span></footer>
+    </div>
+  </div>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <div id="modalRoot"></div>
+</body>
+</html>
