@@ -131,7 +131,8 @@ public sealed class MonkaMemoryWindow : EditorWindow
         }
 
         Undo.RecordObject(manager, "Configure MonkaMemory");
-        manager.ConnectPhotonAutomatically = true;
+        manager.ConnectPhotonAutomatically = !string.IsNullOrEmpty(manager.ApiBaseUrl) &&
+            manager.ApiBaseUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
         manager.CatalogName = string.IsNullOrWhiteSpace(manager.CatalogName) ? "main" : manager.CatalogName;
         manager.CurrencyName = string.IsNullOrWhiteSpace(manager.CurrencyName) ? "Monka Bucks" : manager.CurrencyName;
         manager.StartingUsername = string.IsNullOrWhiteSpace(manager.StartingUsername) ? "Monke" : manager.StartingUsername;
@@ -256,6 +257,7 @@ public sealed class MonkaMemoryWindow : EditorWindow
                 {
                     Undo.RecordObject(manager, "Set MonkaMemory API URL");
                     manager.ApiBaseUrl = uri.AbsoluteUri.TrimEnd('/');
+                    manager.ConnectPhotonAutomatically = true;
                     EditorUtility.SetDirty(manager);
                     if (manager.gameObject.scene.IsValid())
                         EditorSceneManager.MarkSceneDirty(manager.gameObject.scene);
