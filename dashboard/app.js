@@ -65,6 +65,7 @@ function shortDate(value){if(!value)return '—';const d=new Date(value);return 
 function isBanned(p){return Boolean(p.is_banned && (!p.banned_until || Date.parse(p.banned_until)>Date.now()));}
 const errors={INVALID_SETUP_TOKEN:'Invalid or expired setup link.',ALREADY_INITIALIZED:'An owner already exists. Sign in normally.',INVALID_OWNER_DETAILS:'Use 3–60 letters, numbers or underscores for the username and a 12+ character password.',ADMIN_LOGIN_REQUIRED:'Please sign in again.',INVALID_CREDENTIALS:'Incorrect username or password.',BAD_ORIGIN:'Your site address does not match PUBLIC_URL.',RATE_LIMITED:'Too many requests. Try again shortly.',INVALID_CURRENCY_DELTA:'Enter a nonzero whole number between -1,000,000 and 1,000,000.',PLAYER_NOT_FOUND_OR_INVALID_BALANCE:'Player was not found or the balance would be invalid.',PLAYER_OR_ENABLED_ITEM_NOT_FOUND:'Player or enabled cosmetic was not found.',INVALID_BAN_EXPIRATION:'Enter a future date and time.',INVALID_CATALOG_ITEM:'Please check the cosmetic ID, catalog and name.'};
 let currentPage='overview',username='',searchTerm='',playerOffset=0,catalog=[],eventStream=null,viewToken=0,toastTimer=null,modalClose=null,refreshTimer=null;
+let pollingTimer=null;
 let setupMode=false,setupToken=new URLSearchParams(location.hash.slice(1)).get('setup') || '';
 function showSetupMode() {
   setupMode=true;
@@ -96,17 +97,39 @@ function toast(msg,bad=false){
 }
 function hideMobile(){ $('sidebar').classList.remove('open');$('mobileBackdrop').classList.add('hidden'); }
 function showLogin(){
-  eventStream?.close();eventStream=null;$('dashboard').classList.add('hidden');$('loginPage').classList.remove('hidden');$('loginPassword').value='';
+  eventStream?.close();eventStream=null;clearInterval(pollingTimer);pollingTimer=null;$('dashboard').classList.add('hidden');$('loginPage').classList.remove('hidden');$('loginPassword').value='';
 }
 function showDashboard(name){
   username=name;$('userLabel').textContent=name;$('loginPage').classList.add('hidden');$('dashboard').classList.remove('hidden');
   connect();navigate(currentPage);
 }
-function connect(){
-  eventStream?.close();eventStream=new EventSource('/api/v1/admin/stream');
-  eventStream.onopen=()=>{$('connection').textContent='Operational · Live';document.querySelectorAll('.status-dot').forEach(x=>x.classList.remove('offline'));};
-  eventStream.onerror=()=>{$('connection').textContent='Reconnecting…';};
-  eventStream.addEventListener('refresh',()=>{clearTimeout(refreshTimer);refreshTimer=setTimeout(()=>{if(!$('modalRoot').hasChildNodes())navigate(currentPage,false);},380);});
+async function connect(){
+  eventStream?.close();eventStream=null;
+  clearInterval(pollingTimer);pollingTimer=null;
+  try {
+    const response=await fetch('/api/health',{credentials:'same-origin'});
+    if(!response.ok)throw Error('Backend unavailable');
+    const status=await response.json();
+    if(status.transport==='poll'){
+      $('connection').textContent='Online · Auto refreshing';
+      pollingTimer=setInterval(()=>{
+        if(!$('dashboard').classList.contains('hidden') && !$('modalRoot').hasChildNodes())
+          navigate(currentPage,false);
+      },12000);
+      return;
+    }
+    eventStream=new EventSource('/api/v1/admin/stream');
+    eventStream.onopen=()=>{$('connection').textContent='Operational · Live';};
+    eventStream.onerror=()=>{$('connection').textContent='Reconnecting…';};
+    eventStream.addEventListener('refresh',()=>{
+      clearTimeout(refreshTimer);
+      refreshTimer=setTimeout(()=>{
+        if(!$('modalRoot').hasChildNodes())navigate(currentPage,false);
+      },380);
+    });
+  } catch {
+    $('connection').textContent='Backend offline';
+  }
 }
 function titleBar(kicker,title,subtitle,actions=[]){
   return div('page-titlebar',[div('',[div('page-kicker',[kicker]),el('h1',{text:title}),el('p',{text:subtitle})]),div('row',actions)]);
