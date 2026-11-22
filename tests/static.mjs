@@ -12,3 +12,19 @@ for (const id of ['dashboard','loginPage','loginForm','mainContent','userLabel',
 for (const page of ['overview','players','catalog','config','audit']) assert(ui.includes(page),'Missing dashboard page: '+page);
 assert(!server.includes('postgresql://USER:PASSWORD@'),'Backend must never contain an embedded DB password');
 console.log('PASS API/UI integration contract checks');
+
+const setup = readFileSync(new URL('../scripts/start-local.mjs',import.meta.url),'utf8');
+const editor = readFileSync(new URL('../Unity/Editor/MonkaMemoryWindow.cs',import.meta.url),'utf8');
+const unity = readFileSync(new URL('../Unity/Runtime/MonkaMemoryManager.cs',import.meta.url),'utf8');
+const publicUi = readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
+assert.equal(ui,publicUi,'Static dashboard must match dashboard/app.js');
+assert(server.includes("'/api/v1/admin/setup'"),'First-time owner setup endpoint missing');
+assert(server.includes("'/api/v1/admin/setup-status'"),'Setup status endpoint missing');
+assert(server.includes("ADMIN_SETUP_TOKEN"),'Owner setup must require a private token');
+assert(server.includes('vercelHandler'),'Vercel API handler missing');
+assert(editor.includes('Setup MonkaMemory'),'Unity one-click setup menu missing');
+assert(editor.includes('SyncConnectionManifest'),'Unity public URL sync missing');
+assert(unity.includes('yield break;'),'Coroutine yield break fix missing');
+assert(setup.includes('randomBytes(32)'),'Launcher must create secure random secrets');
+console.log('PASS public dashboard, owner setup, Unity installer and secure launcher contracts');
+
