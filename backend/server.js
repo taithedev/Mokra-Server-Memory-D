@@ -61,6 +61,14 @@ function cookie(req, name) {
 async function body(req) {
   const type = String(req.headers['content-type'] || '').toLowerCase().split(';')[0].trim();
   if (type !== 'application/json') throw error(415, 'JSON_REQUIRED');
+  // Vercel parses JSON before invoking Node.js functions. The standalone
+  // Node.js server still reads its request stream itself.
+  if (req.body !== undefined) {
+    const parsed = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw error(400, 'INVALID_JSON');
+    if (JSON.stringify(parsed).length > 32768) throw error(413, 'PAYLOAD_TOO_LARGE');
+    return parsed;
+  }
   let raw = '';
   for await (const chunk of req) {
     raw += chunk;
@@ -429,4 +437,15 @@ async function main() {
     db.query('DELETE FROM mm_photon_tickets WHERE expires_at<now()').catch(console.error);
   },3600000).unref();
 }
-main().catch(e => { console.error(e.message); process.exit(1); });
+if (!process.env.VERCEL) {
+  main().catch(e => { console.error(e.message); process.exit(1); });
+}
+// Vercel Node.js functions use this same API/router without starting an HTTP listener.
+export async function vercelHandler(req, res) {
+  try { await handle(req, res); }
+  catch (e) {
+    if (res.headersSent) { res.end(); return; }
+    if (!e.status) console.error('MonkaMemory API:', e.message);
+    json(res,e.status || 500,{error:e.status ? e.message : 'SERVER_ERROR',...(e.more || {})});
+  }
+}
