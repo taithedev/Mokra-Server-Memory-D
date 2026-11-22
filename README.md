@@ -1,34 +1,55 @@
-# MonkaMemory — Monka VR backend
+# MonkaMemory — private backend for Monka VR
 
-Private game backend and admin dashboard built for Monka VR. Neon PostgreSQL stores player data, inventory, currency, bans and title config. Photon PUN 2 handles real-time multiplayer with single-use custom authentication tickets issued by this API.
+MonkaMemory is the custom backend for **Monka VR only**. It replaces the old PlayFab player-data features using Neon PostgreSQL, while **Photon PUN 2** continues handling multiplayer rooms and gameplay traffic.
 
-## Setup
-1. Use the existing Neon project **MonkaMemory** with database **monkamemory**.
-2. Deploy the **whole repository** as one long-running Node.js service (Node 22+, start command `npm start` from the repository root). **Leave Railway's Root Directory blank or `/`**, because `backend/server.js` serves the adjacent `dashboard/` folder. Do not use `/backend` as Railway's Root Directory or the dashboard assets will be excluded. GitHub does not itself host the backend.
-3. In Railway, generate a public HTTPS domain in Settings → Networking, then set runtime environment variables: `DATABASE_URL` (Neon pooled connection URL), `AUTH_PEPPER` (random 32+ character secret), `ADMIN_USERNAME`, `ADMIN_PASSWORD` (12+ characters for first-time setup), and `PUBLIC_URL` (exact HTTPS origin).
-4. `PUBLIC_URL` must be exactly `https://YOUR-RAILWAY-DOMAIN` without a trailing slash (or your custom domain), since the admin login checks browser Origin. Do not commit passwords or Neon credentials. Remove `ADMIN_PASSWORD` from deployment variables after bootstrapping the administrator.
-5. Redeploy after variables change. Visit `/api/health` to verify Neon connection, then sign in to the dashboard.
-6. In the Photon Dashboard, configure **Custom Authentication** endpoint at `https://YOUR_HOST/api/v1/photon/auth`. Use the ticket parameter supplied by the Unity manager.
-7. The repo is only for Monka VR. The API retains compatibility with MonkaMemoryManager.cs and the original Playfablogin.cs fields.
+## Easiest setup: Windows + Unity (local development)
 
-## Features
-- Secure HTTP-only admin session, login, logout
-- Overview: player totals, recent activity, coins, catalog, bans
-- Players: search, inspect, grant/revoke cosmetics, adjust MB coins, permanent/temporary bans
-- Cosmetics catalog creation/update, maintenance mode, minimum version, MOTD
-- Audit log and SSE dashboard refresh
-- Guest login, persistent profiles and session-based player API
-- Photon single-use tickets with server-side validation
+1. Install **Node.js 22+** if it is not already installed.
+2. Open the repository folder and double-click **START-MONKAMEMORY.cmd**.
+3. On the first launch, paste your **pooled Neon connection URL** for the existing `MonkaMemory` project, database `monkamemory`. It is stored locally in `backend/.env`, which Git ignores. Never paste that URL into Unity.
+4. The launcher generates private secrets, installs Node dependencies and opens the dashboard's one-time owner setup. Choose an administrator username and a strong password.
+5. Copy `Unity/Runtime/MonkaMemoryManager.cs` to `Assets/MokraMemory/Runtime/`, and `Unity/Editor/MonkaMemoryWindow.cs` to `Assets/MokraMemory/Editor/`. Or use the **MonkaMemory-Unity-Setup** artifact on the successful GitHub Actions run, which packages both files under `Assets/MokraMemory`.
+6. In Unity, open **Monka → Setup MonkaMemory** and click **Install / Repair MonkaMemory**, then **Test Backend**. The local API URL defaults to `http://localhost:8787`.
+7. In the Inspector, confirm the auto-detected TextMeshPro UI and cosmetic GameObjects; scene-specific cosmetic links still require assigning the correct objects if their names aren't detected.
 
-## Important limitations
-MonkaMemory uses a persistent Node.js process and SSE. Do not deploy the backend as a static-only site. This baseline is single-instance; use shared pub/sub/rate limiting before horizontal scaling. Photon realtime rooms are managed by Photon, not the Neon database. Guest profiles do not have cross-device recovery. Full Unity/Photon integration and live hosting require configuration and real client testing.
+The local launcher is useful for **testing on your PC**. It is **not a publicly reachable multiplayer authentication server**: the Photon Cloud cannot call `localhost` on your computer.
 
-## Run locally
-```bash
-cp backend/.env.example backend/.env
-# edit backend/.env; never commit it
+## For public Monka VR multiplayer
+
+1. Deploy the **entire repository** to a Node.js 22+ hosting service that supports long-running processes, using `npm start` at the repository root. Keep the root directory `/` because the backend also serves `dashboard/`.
+2. Configure these **server-side** variables: `DATABASE_URL` (pooled Neon URL), `AUTH_PEPPER` (64+ hex random chars), `ADMIN_SETUP_TOKEN` (another independent 64+ hex random chars), and `PUBLIC_URL` (your exact public HTTPS origin, without trailing slash). No Neon/owner secrets should be committed to GitHub or placed in Unity. The backend still supports optional `ADMIN_USERNAME`/`ADMIN_PASSWORD` initialization, but the one-time browser setup route is recommended instead.
+3. Once deployed, open `https://YOUR_HOST/api/health` to verify `"ok":true`. Use `https://YOUR_HOST/#setup=YOUR_ADMIN_SETUP_TOKEN` once to create the owner account; remove the setup token from your deployment configuration after setup if desired, as it cannot create a second owner.
+4. Edit `monkamemory-connection.json` in this repository with `{"apiUrl":"https://YOUR_HOST","version":"1.2.0"}`. This is **public configuration, not a secret**. Open the Unity MonkaMemory Console and click **Sync Hosted API Address**. It sets the URL without copy-pasting in Unity.
+5. In the **Photon Dashboard**, set Custom Authentication to **GET** `https://YOUR_HOST/api/v1/photon/auth`, accepting the `ticket` URL parameter. Disable old Photon auto-connect scripts so MonkaMemory can obtain a one-time ticket *before* Photon connects.
+6. Test with two separate Unity clients/accounts, the Photon Dashboard, and the owner console.
+
+`PUBLIC_URL` must exactly match the browser's dashboard HTTPS origin because admin sessions use an origin check. Photon custom authentication uses a separate endpoint and does not require the owner's credentials.
+
+## What works in the backend
+
+- Guest identity stored under a local installation secret; persistent Monka ID and 7-day session
+- Player data (name, Monka Bucks, owned cosmetics)
+- Owner dashboard for players, catalog, bans, currency grants, MOTD, maintenance and minimum client version
+- Audit history and server-authoritative currency adjustments
+- One-time Photon custom-auth tickets (120 seconds); replay attempts rejected
+- Single-instance Node.js SSE dashboard updates; periodic dashboard refresh on Vercel
+- Unity C# manager plus installation window and auto-detection of common UI references
+- GitHub Actions syntax/static integration checks and ready-to-copy Unity package artifact
+
+## Limitations
+
+The backend must be online for public multiplayer. No hosting account can be provisioned by importing Unity files alone. **Do not put a Neon database password or connection URL in any game client.** Guest accounts have no cross-device account recovery. The real Unity/Photon runtime is not covered by JavaScript syntax tests, and serverless dashboard refresh is polling rather than continuous SSE.
+
+## Developer commands
+
+```sh
+npm install
+npm test
 cd backend
+cp .env.example .env
+# Set DATABASE_URL, AUTH_PEPPER, ADMIN_SETUP_TOKEN and PUBLIC_URL
 npm install
 npm run dev
 ```
-Open http://localhost:8787. For smoke tests run `node tests/smoke.mjs` from the repository root with the API running.
+
+After a running API is available, `node tests/smoke.mjs` exercises login, profile persistence and single-use Photon tickets (it creates a test profile).
