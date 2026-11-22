@@ -1,8 +1,10 @@
-name: MonkaMemory checks
+name: MonkaMemory checks and Unity installer
 on:
   push:
     branches: [main]
   pull_request:
+permissions:
+  contents: read
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -11,11 +13,37 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check JavaScript syntax
+      - name: JavaScript syntax checks
         run: |
           node --check backend/server.js
           node --check dashboard/app.js
+          node --check public/app.js
+          node --check api/index.js
+          node --check scripts/start-local.mjs
           node --check tests/static.mjs
           node --check tests/smoke.mjs
-      - name: Verify API and dashboard contract
+      - name: Verify backend and dashboard interfaces
         run: node tests/static.mjs
+      - name: Check Unity install files
+        run: |
+          test -f Unity/Runtime/MonkaMemoryManager.cs
+          test -f Unity/Editor/MonkaMemoryWindow.cs
+          test ! -e Unity/Runtime/Playfablogin.cs
+          grep -q "yield break;" Unity/Runtime/MonkaMemoryManager.cs
+          grep -q "CopyFromSerializedProperty" Unity/Editor/MonkaMemoryWindow.cs
+          cmp dashboard/app.js public/app.js
+          cmp dashboard/index.html public/index.html
+      - name: Package one-click Unity installer
+        run: |
+          mkdir -p deliver/Assets/MokraMemory/Runtime
+          mkdir -p deliver/Assets/MokraMemory/Editor
+          cp Unity/Runtime/MonkaMemoryManager.cs deliver/Assets/MokraMemory/Runtime/
+          cp Unity/Editor/MonkaMemoryWindow.cs deliver/Assets/MokraMemory/Editor/
+          (cd deliver && zip -rq ../MonkaMemory-Unity-Setup.zip Assets)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MonkaMemory-Unity-Setup
+          path: MonkaMemory-Unity-Setup.zip
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
